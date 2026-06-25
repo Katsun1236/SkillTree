@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from './supabaseClient';
+import { supabase } from './supabaseClient'; // Assure-toi que les majuscules correspondent bien au nom de ton fichier !
 import Login from './pages/Login';
 import IndexView from './pages/Index';
 import TreeView from './pages/TreeView';
@@ -14,9 +14,13 @@ export default function App() {
       if (session) setCurrentView('index');
     });
 
-    // 2. On écoute en temps réel (ex: quand Discord nous renvoie validé)
+    // 2. On écoute en temps réel (c'est ça qui détecte le retour de Discord !)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setCurrentView(session ? 'index' : 'login');
+      if (session) {
+        setCurrentView('index'); // Connexion réussie -> Tableau de bord
+      } else {
+        setCurrentView('login'); // Déconnexion -> Login
+      }
     });
 
     return () => subscription.unsubscribe();
