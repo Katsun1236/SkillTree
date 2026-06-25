@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
-import { Grid, Map as MapIcon } from 'lucide-react';
+import { Grid, Map as MapIcon, Star } from 'lucide-react';
 import NodeCard from '../components/nodes/NodeCard';
 import NodeModal from '../components/nodes/Nodemodal';
 import EditorPanel from '../components/EditorPanel';
@@ -13,10 +13,9 @@ export default function TreeView({ setView, treeId }) {
   const [selectedNode, setSelectedNode] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
   
-  // Nouveaux états pour le Canvas
   const [snapToGrid, setSnapToGrid] = useState(false);
   const [draggingNodeId, setDraggingNodeId] = useState(null);
-  const GRID_SIZE = 40; // Taille de la grille pour le magnétisme
+  const GRID_SIZE = 40; 
 
   useEffect(() => {
     if (treeId) {
@@ -45,7 +44,7 @@ export default function TreeView({ setView, treeId }) {
         emoji: node.emoji || '🌟',
         subtitle: node.subtitle || '',
         pages: node.pages || [{ id: 'page-1', content: node.content || '', validation: { type: 'read' } }],
-        xpReward: node.xp_reward || 50
+        xpReward: node.xp_reward ?? 50 // 50 XP par défaut
       }));
       setNodes(calculateUnlocks(formattedNodes));
     }
@@ -53,7 +52,21 @@ export default function TreeView({ setView, treeId }) {
   };
   
   const calculateUnlocks = (currentNodes) => {
+    // 1. On liste tous les IDs qui doivent être bannis par les compétences déjà complétées
+    const blockedIds = new Set();
+    currentNodes.forEach(node => {
+      if (node.status === 'completed' && node.exclusiveWith?.length > 0) {
+        node.exclusiveWith.forEach(id => blockedIds.add(id));
+      }
+    });
+
+    // 2. On applique les règles de base + le nouveau statut 'blocked'
     return currentNodes.map(node => {
+      // Si la carte est dans la liste des bannis, elle est bloquée définitivement
+      if (blockedIds.has(node.id)) {
+        return { ...node, status: 'blocked' };
+      }
+
       if (node.status === 'completed' || (node.dependsOn.length === 0 && node.status !== 'completed')) {
         return { ...node, status: node.status === 'completed' ? 'completed' : 'unlocked' };
       }
@@ -72,12 +85,35 @@ export default function TreeView({ setView, treeId }) {
     await supabase.from('trees').update({ [field]: value }).eq('id', treeId);
   };
 
+  // --- SYSTÈME D'XP ---
   const markAsRead = async (nodeId) => {
+    const completedNode = nodes.find(n => n.id === nodeId);
     const newNodes = nodes.map(n => n.id === nodeId ? { ...n, status: 'completed' } : n);
     setNodes(calculateUnlocks(newNodes));
     setSelectedNode(null);
+    
+    // Mise à jour de la carte en BDD
     await supabase.from('nodes').update({ status: 'completed' }).eq('id', nodeId);
-    // TODO: Ajouter l'XP à l'arbre/utilisateur ici plus tard
+
+    // Ajout de l'XP à l'arbre
+    const xpGained = completedNode.xpReward || 0;
+    if (xpGained > 0 && treeData) {
+      const currentXp = treeData.current_xp || 0;
+      const currentLevel = treeData.level || 1;
+      const newXpTotal = currentXp + xpGained;
+      
+      // Calcul du niveau (ex: Palier de 100 XP par niveau)
+      const threshold = currentLevel * 100;
+      let newLevel = currentLevel;
+      
+      if (newXpTotal >= threshold) {
+        newLevel = currentLevel + 1;
+        // Optionnel : tu pourrais déclencher une animation de Level Up ici !
+      }
+
+      setTreeData(prev => ({ ...prev, current_xp: newXpTotal, level: newLevel }));
+      await supabase.from('trees').update({ current_xp: newXpTotal, level: newLevel }).eq('id', treeId);
+    }
   };
 
   const addNode = async () => {
@@ -117,17 +153,14 @@ export default function TreeView({ setView, treeId }) {
     await supabase.from('nodes').update({ [mappedField]: value }).eq('id', nodeId);
   };
 
-  // --- LOGIQUE DU DRAG & DROP AVEC ZOOM ---
   const handleMouseDown = (e, nodeId) => {
     if (!isEditMode) return;
-    e.stopPropagation(); // Empêche le pan du canvas de s'activer
+    e.stopPropagation(); 
     setDraggingNodeId(nodeId);
   };
 
   const handleMouseMove = (e, scale) => {
     if (!draggingNodeId) return;
-    
-    // On calcule le déplacement en prenant en compte le niveau de zoom actuel
     const movementX = e.movementX / scale;
     const movementY = e.movementY / scale;
 
@@ -135,13 +168,10 @@ export default function TreeView({ setView, treeId }) {
       if (n.id === draggingNodeId) {
         let newX = n.position.x + movementX;
         let newY = n.position.y + movementY;
-        
-        // Application du magnétisme (Snap to Grid) si activé
         if (snapToGrid) {
           newX = Math.round(newX / GRID_SIZE) * GRID_SIZE;
           newY = Math.round(newY / GRID_SIZE) * GRID_SIZE;
         }
-        
         return { ...n, position: { x: newX, y: newY } };
       }
       return n;
@@ -156,7 +186,6 @@ export default function TreeView({ setView, treeId }) {
     setDraggingNodeId(null);
   };
 
-  // Dessin des liens
   const renderConnections = () => {
     const lines = [];
     nodes.forEach(node => {
@@ -192,11 +221,7 @@ export default function TreeView({ setView, treeId }) {
     <div className="h-full w-full flex overflow-hidden bg-slate-50 relative">
       
       {isEditMode && (
-        <EditorPanel 
-          setView={setView} addNode={addNode} setIsEditMode={setIsEditMode}
-          treeData={treeData} updateTreeData={updateTreeData}
-        >
-          {/* Ajout du bouton Snap to Grid dans l'éditeur */}
+        <EditorPanel setView={setView} addNode={addNode} setIsEditMode={setIsEditMode} treeData={treeData} updateTreeData={updateTreeData}>
           <div className="mt-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Outils Canvas</h3>
             <button 
@@ -209,7 +234,27 @@ export default function TreeView({ setView, treeId }) {
         </EditorPanel>
       )}
 
-      {/* Bouton d'édition flottant */}
+      {/* Barre d'XP Flottante (Affichée en mode lecture) */}
+      {!isEditMode && treeData && (
+        <div className="absolute top-6 left-1/2 -translate-x-1/2 z-30 bg-white px-6 py-3 rounded-2xl shadow-xl border border-slate-200 flex items-center gap-4 min-w-[300px]">
+          <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center">
+            <Star className="text-indigo-500" size={24} fill="currentColor" />
+          </div>
+          <div className="flex-1">
+            <div className="flex justify-between w-full text-xs font-black mb-1.5 uppercase tracking-wide">
+              <span className="text-indigo-600">Niveau {treeData.level || 1}</span>
+              <span className="text-slate-400">{treeData.current_xp || 0} / {(treeData.level || 1) * 100} XP</span>
+            </div>
+            <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-indigo-500 rounded-full transition-all duration-1000 ease-out"
+                style={{ width: `${Math.min(100, ((treeData.current_xp || 0) / ((treeData.level || 1) * 100)) * 100)}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="absolute top-6 left-6 z-30 flex gap-2">
         {!isEditMode && (
           <button onClick={() => setIsEditMode(true)} className="bg-black text-white px-5 py-2.5 rounded-xl font-bold shadow-lg hover:bg-slate-800 transition flex items-center gap-2">
@@ -218,24 +263,16 @@ export default function TreeView({ setView, treeId }) {
         )}
       </div>
 
-      {/* Mini-map UI (visuelle pour le moment, logique à lier avec TransformWrapper) */}
       <div className="absolute bottom-6 right-6 z-30 bg-white p-2 rounded-xl shadow-xl border border-slate-200 flex items-center justify-center cursor-help" title="Utilise la molette pour zoomer, clique et glisse dans le vide pour te déplacer.">
         <MapIcon size={24} className="text-slate-400" />
       </div>
 
-      {/* MOTEUR DE RENDU ZOOM & PAN */}
       <TransformWrapper
-        initialScale={1}
-        minScale={0.1}
-        maxScale={4}
-        centerOnInit={true}
-        disabled={draggingNodeId !== null} // Désactive le pan quand on bouge une carte
-        panning={{ velocityDisabled: true }}
+        initialScale={1} minScale={0.1} maxScale={4} centerOnInit={true}
+        disabled={draggingNodeId !== null} panning={{ velocityDisabled: true }}
       >
         {({ zoomIn, zoomOut, resetTransform, state }) => (
           <div className="flex-1 relative w-full h-full overflow-hidden" style={workspaceStyle}>
-            
-            {/* Contrôles de zoom visibles en bas à gauche */}
             <div className="absolute bottom-6 left-6 z-30 flex bg-white rounded-lg shadow-lg border border-slate-200 overflow-hidden font-bold">
               <button onClick={() => zoomOut()} className="px-3 py-2 hover:bg-slate-100 border-r border-slate-200">-</button>
               <button onClick={() => resetTransform()} className="px-3 py-2 hover:bg-slate-100 text-sm text-slate-500">{Math.round(state.scale * 100)}%</button>
@@ -245,27 +282,15 @@ export default function TreeView({ setView, treeId }) {
             <TransformComponent wrapperStyle={{ width: "100%", height: "100%" }}>
               <main 
                 className={`w-[5000px] h-[5000px] relative transition-colors ${isEditMode && !draggingNodeId ? 'cursor-grab active:cursor-grabbing' : ''} ${draggingNodeId ? 'cursor-crosshair' : ''}`}
-                ref={workspaceRef}
-                onMouseMove={(e) => handleMouseMove(e, state.scale)}
-                onMouseUp={handleMouseUp}
-                onMouseLeave={handleMouseUp}
+                ref={workspaceRef} onMouseMove={(e) => handleMouseMove(e, state.scale)} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}
               >
-                {/* Grille visuelle si le magnétisme est activé */}
                 {snapToGrid && isEditMode && (
                   <div className="absolute inset-0 opacity-20 pointer-events-none" 
                        style={{ backgroundImage: `radial-gradient(#000 1px, transparent 1px)`, backgroundSize: `${GRID_SIZE}px ${GRID_SIZE}px` }} />
                 )}
-
-                <svg className="absolute top-0 left-0 w-full h-full pointer-events-none">
-                  {renderConnections()}
-                </svg>
-
+                <svg className="absolute top-0 left-0 w-full h-full pointer-events-none">{renderConnections()}</svg>
                 {nodes.map(node => (
-                  <NodeCard
-                    key={node.id} node={node} isEditMode={isEditMode}
-                    onMouseDown={(e) => handleMouseDown(e, node.id)}
-                    onClick={() => setSelectedNode(node)}
-                  />
+                  <NodeCard key={node.id} node={node} isEditMode={isEditMode} onMouseDown={(e) => handleMouseDown(e, node.id)} onClick={() => setSelectedNode(node)} />
                 ))}
               </main>
             </TransformComponent>
@@ -273,10 +298,7 @@ export default function TreeView({ setView, treeId }) {
         )}
       </TransformWrapper>
 
-      <NodeModal
-        selectedNode={selectedNode} isEditMode={isEditMode} nodes={nodes}
-        updateNodeData={updateNodeData} markAsRead={markAsRead} onClose={() => setSelectedNode(null)}
-      />
+      <NodeModal selectedNode={selectedNode} isEditMode={isEditMode} nodes={nodes} updateNodeData={updateNodeData} markAsRead={markAsRead} onClose={() => setSelectedNode(null)} />
     </div>
   );
 }
