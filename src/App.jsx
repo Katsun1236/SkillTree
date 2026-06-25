@@ -1,3 +1,6 @@
+import Login from './pages/Login';
+import IndexView from './pages/Index';
+import TreeView from './pages/TreeView';
 import React, { useState } from 'react';
 
 export default function App() {
