@@ -12,6 +12,7 @@ export default function TreeView({ setView, treeId }) {
   const [loading, setLoading] = useState(true);
   const [selectedNode, setSelectedNode] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [workspaceRef] = useRef(null);
   
   const [snapToGrid, setSnapToGrid] = useState(false);
   const [draggingNodeId, setDraggingNodeId] = useState(null);
