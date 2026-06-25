@@ -1,33 +1,8 @@
 import React, { useState, useEffect } from 'react';
-
 import { supabase } from './supabaseClient';
 import Login from './pages/Login';
 import IndexView from './pages/Index';
 import TreeView from './pages/TreeView';
-
-function IndexView({ setView, setActiveTreeId }) {
-  return (
-    <div className="flex h-full w-full items-center justify-center gap-4">
-      <button onClick={() => { setActiveTreeId('1'); setView('tree'); }} className="bg-black text-white p-4 rounded-xl font-bold">
-        Ouvrir un arbre (Aperçu)
-      </button>
-      <button onClick={() => setView('login')} className="bg-slate-200 text-black p-4 rounded-xl font-bold">
-        Déconnexion
-      </button>
-    </div>
-  );
-}
-
-function TreeView({ setView, treeId }) {
-  return (
-    <div className="flex h-full w-full items-center justify-center">
-      <button onClick={() => setView('index')} className="bg-black text-white p-4 rounded-xl font-bold">
-        Retour à l'accueil (Aperçu)
-      </button>
-    </div>
-  );
-}
-// -------------------------------------------------------------------------
 
 export default function App() {
   const [currentView, setCurrentView] = useState('login');
@@ -46,8 +21,6 @@ export default function App() {
 
     return () => subscription.unsubscribe();
   }, []);
-  
-  
 
   return (
     <div className="h-screen w-full bg-slate-50 text-black overflow-hidden">
