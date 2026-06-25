@@ -1,6 +1,6 @@
 import React from 'react';
 import { LogIn } from 'lucide-react';
-import Button from '../components/ui/Button';
+import Button from '../components/ui/Butoon';
 
 export default function Login({ setView }) {
   return (
