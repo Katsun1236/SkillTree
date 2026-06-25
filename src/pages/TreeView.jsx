@@ -2,14 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 import NodeCard from '../components/nodes/NodeCard';
 import NodeModal from '../components/nodes/Nodemodal';
-import EditorPanel from '../components/EditorPanel';
+import EditorPanel from '../components/EditorPanel'; // Import corrigé à la racine de components
 
 export default function TreeView({ setView, treeId }) {
   const [nodes, setNodes] = useState([]);
   const [treeData, setTreeData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedNode, setSelectedNode] = useState(null);
-  const [isEditMode, setIsEditMode] = useState(true);
+  const [isEditMode, setIsEditMode] = useState(false);
   const [draggingNodeId, setDraggingNodeId] = useState(null);
   const workspaceRef = useRef(null);
   
@@ -30,7 +30,7 @@ export default function TreeView({ setView, treeId }) {
     if (data) setTreeData(data);
   };
 
-  // Charger les compétences
+  // Charger les compétences avec tous les nouveaux champs de style
   const loadTreeNodes = async () => {
     setLoading(true);
     const { data } = await supabase
@@ -42,13 +42,18 @@ export default function TreeView({ setView, treeId }) {
       const formattedNodes = data.map(node => ({
         ...node,
         dependsOn: node.depends_on || [],
-        lockedTitle: node.locked_title || '', 
+        lockedTitle: node.locked_title || '',
+        bgColor: node.bg_color || '#ffffff',
+        textColor: node.text_color || '#000000',
+        emoji: node.emoji || '🌟',
+        subtitle: node.subtitle || ''
       }));
       setNodes(calculateUnlocks(formattedNodes));
     }
     setLoading(false);
   };
   
+  // Fonction de calcul des déblocages de compétences
   const calculateUnlocks = (currentNodes) => {
     return currentNodes.map(node => {
       if (node.status === 'completed' || (node.dependsOn.length === 0 && node.status !== 'completed')) {
@@ -73,6 +78,7 @@ export default function TreeView({ setView, treeId }) {
       .eq('id', treeId);
   };
 
+  // Valider une compétence
   const markAsRead = async (nodeId) => {
     const newNodes = nodes.map(n => n.id === nodeId ? { ...n, status: 'completed' } : n);
     setNodes(calculateUnlocks(newNodes));
@@ -80,6 +86,7 @@ export default function TreeView({ setView, treeId }) {
     await supabase.from('nodes').update({ status: 'completed' }).eq('id', nodeId);
   };
 
+  // Ajouter une nouvelle carte avec les styles par défaut
   const addNode = async () => {
     const newNodeData = {
       id: `node-${Date.now()}`,
@@ -90,20 +97,35 @@ export default function TreeView({ setView, treeId }) {
       position: { x: 400, y: 200 },
       status: 'locked',
       depends_on: [],
-      locked_title: ''
+      locked_title: '',
+      emoji: '🌟',
+      subtitle: '',
+      bg_color: '#ffffff',
+      text_color: '#000000'
     };
 
     const { data } = await supabase.from('nodes').insert(newNodeData).select().single();
     if (data) {
-      const formatted = { ...data, dependsOn: data.depends_on || [], lockedTitle: data.locked_title || '' };
+      const formatted = { 
+        ...data, 
+        dependsOn: data.depends_on || [], 
+        lockedTitle: data.locked_title || '',
+        bgColor: data.bg_color || '#ffffff',
+        textColor: data.text_color || '#000000',
+        emoji: data.emoji || '🌟',
+        subtitle: data.subtitle || ''
+      };
       setNodes(calculateUnlocks([...nodes, formatted]));
     }
   };
 
+  // Gérer la mise à jour des données (liaison React -> Supabase)
   const updateNodeData = async (nodeId, field, value) => {
     let mappedField = field;
     if (field === 'dependsOn') mappedField = 'depends_on';
     if (field === 'lockedTitle') mappedField = 'locked_title';
+    if (field === 'bgColor') mappedField = 'bg_color';
+    if (field === 'textColor') mappedField = 'text_color';
 
     const newNodes = nodes.map(n => n.id === nodeId ? { ...n, [field]: value } : n);
     setNodes(calculateUnlocks(newNodes));
@@ -115,6 +137,7 @@ export default function TreeView({ setView, treeId }) {
     await supabase.from('nodes').update({ [mappedField]: value }).eq('id', nodeId);
   };
 
+  // Gestion du Drag & Drop
   const handleMouseDown = (e, nodeId) => {
     if (!isEditMode) return;
     setDraggingNodeId(nodeId);
@@ -138,15 +161,16 @@ export default function TreeView({ setView, treeId }) {
     setDraggingNodeId(null);
   };
 
+  // Dessin des liens entre les compétences
   const renderConnections = () => {
     const lines = [];
     nodes.forEach(node => {
       node.dependsOn.forEach(depId => {
         const parentNode = nodes.find(n => n.id === depId);
         if (parentNode) {
-          const startX = parentNode.position.x + 100;
+          const startX = parentNode.position.x + 120; // Ajusté pour la nouvelle largeur de NodeCard
           const startY = parentNode.position.y + 80;
-          const endX = node.position.x + 100;
+          const endX = node.position.x + 120; // Ajusté pour la nouvelle largeur de NodeCard
           const endY = node.position.y;
           const isUnlocked = node.status !== 'locked';
           lines.push(
@@ -173,13 +197,13 @@ export default function TreeView({ setView, treeId }) {
     );
   }
 
-  // Définir le style d'arrière plan dynamiquement
+  // Définir le style d'arrière-plan dynamiquement
   const workspaceStyle = treeData?.background_type === 'image'
     ? { backgroundImage: `url(${treeData.background_value})`, backgroundSize: 'cover', backgroundPosition: 'center' }
     : { backgroundColor: treeData?.background_value || '#ffffff' };
 
   return (
-    <div className="h-full w-full bg-white flex overflow-hidden">
+    <div className="h-full w-full flex overflow-hidden bg-slate-50">
       
       {isEditMode && (
         <EditorPanel 
@@ -194,14 +218,14 @@ export default function TreeView({ setView, treeId }) {
       {!isEditMode && (
         <button 
           onClick={() => setIsEditMode(true)}
-          className="absolute top-6 left-6 z-30 bg-black text-white px-4 py-2 rounded-lg font-bold shadow-lg hover:bg-slate-800 transition"
+          className="absolute top-6 left-6 z-30 bg-black text-white px-5 py-2.5 rounded-xl font-bold shadow-lg hover:bg-slate-800 transition flex items-center gap-2"
         >
           Ouvrir l'éditeur
         </button>
       )}
 
       <main 
-        className={`flex-1 relative overflow-hidden ${isEditMode ? 'cursor-crosshair' : ''}`}
+        className={`flex-1 relative overflow-hidden transition-colors ${isEditMode ? 'cursor-crosshair' : ''}`}
         style={workspaceStyle}
         ref={workspaceRef}
         onMouseMove={handleMouseMove}
