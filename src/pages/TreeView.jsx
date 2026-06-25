@@ -1,45 +1,54 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { supabase } from '../supabaseClient'; // Import de ton client Supabase
+import { supabase } from '../supabaseClient';
 import NodeCard from '../components/nodes/NodeCard';
 import NodeModal from '../components/nodes/Nodemodal';
 import EditorPanel from '../components/EditorPanel';
 
 export default function TreeView({ setView, treeId }) {
   const [nodes, setNodes] = useState([]);
+  const [treeData, setTreeData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedNode, setSelectedNode] = useState(null);
-  const [isEditMode, setIsEditMode] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(true);
   const [draggingNodeId, setDraggingNodeId] = useState(null);
   const workspaceRef = useRef(null);
-
-  // 1. Charger les nœuds depuis Supabase au montage du composant
+  
   useEffect(() => {
     if (treeId) {
+      loadTreeDetails();
       loadTreeNodes();
     }
   }, [treeId]);
 
+  // Charger les infos globales de l'arbre (Nom, fond)
+  const loadTreeDetails = async () => {
+    const { data } = await supabase
+      .from('trees')
+      .select('*')
+      .eq('id', treeId)
+      .single();
+    if (data) setTreeData(data);
+  };
+
+  // Charger les compétences
   const loadTreeNodes = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('nodes') // Remplace par le nom exact de ta table de nœuds
+    const { data } = await supabase
+      .from('nodes')
       .select('*')
       .eq('tree_id', treeId);
 
-    if (error) {
-      console.error("Erreur lors du chargement des compétences :", error.message);
-    } else if (data) {
-      // Adapter le format si depends_on ou position diffèrent en base de données
+    if (data) {
       const formattedNodes = data.map(node => ({
         ...node,
-        dependsOn: node.depends_on || [], // mapping camelCase / snake_case
+        dependsOn: node.depends_on || [],
+        lockedTitle: node.locked_title || '', 
       }));
       setNodes(calculateUnlocks(formattedNodes));
     }
     setLoading(false);
   };
   
-  // Fonction de calcul des verrous (inchangée)
   const calculateUnlocks = (currentNodes) => {
     return currentNodes.map(node => {
       if (node.status === 'completed' || (node.dependsOn.length === 0 && node.status !== 'completed')) {
@@ -55,61 +64,47 @@ export default function TreeView({ setView, treeId }) {
     });
   };
 
-  // 2. Sauvegarder le changement de statut (Validation de l'apprentissage)
-  const markAsRead = async (nodeId) => {
-    const updatedNodes = nodes.map(n => n.id === nodeId ? { ...n, status: 'completed' } : n);
-    const calculated = calculateUnlocks(updatedNodes);
-    
-    setNodes(calculated);
-    setSelectedNode(null);
-
-    // Update dans Supabase
-    const targetNode = calculated.find(n => n.id === nodeId);
+  // Mettre à jour les données globales de l'arbre (Nom et fond)
+  const updateTreeData = async (field, value) => {
+    setTreeData(prev => ({ ...prev, [field]: value }));
     await supabase
-      .from('nodes')
-      .update({ status: 'completed' })
-      .eq('id', nodeId);
-      
-    // Optionnel : Mettre à jour aussi le statut des nœuds enfants débloqués en BDD
+      .from('trees')
+      .update({ [field]: value })
+      .eq('id', treeId);
   };
 
-  // 3. Ajouter une nouvelle compétence sur Supabase
+  const markAsRead = async (nodeId) => {
+    const newNodes = nodes.map(n => n.id === nodeId ? { ...n, status: 'completed' } : n);
+    setNodes(calculateUnlocks(newNodes));
+    setSelectedNode(null);
+    await supabase.from('nodes').update({ status: 'completed' }).eq('id', nodeId);
+  };
+
   const addNode = async () => {
-    const tempId = `node-${Date.now()}`;
     const newNodeData = {
-      id: tempId,
+      id: `node-${Date.now()}`,
       tree_id: treeId,
       title: 'Nouveau',
       content: '',
       image: '',
       position: { x: 400, y: 200 },
       status: 'locked',
-      depends_on: []
+      depends_on: [],
+      locked_title: ''
     };
 
-    // Insertion BDD
-    const { data, error } = await supabase
-      .from('nodes')
-      .insert(newNodeData)
-      .select()
-      .single();
-
-    if (error) {
-      console.error("Erreur lors de l'ajout du nœud :", error.message);
-      return;
-    }
-
+    const { data } = await supabase.from('nodes').insert(newNodeData).select().single();
     if (data) {
-      const formatted = { ...data, dependsOn: data.depends_on || [] };
+      const formatted = { ...data, dependsOn: data.depends_on || [], lockedTitle: data.locked_title || '' };
       setNodes(calculateUnlocks([...nodes, formatted]));
     }
   };
 
-  // 4. Mettre à jour les données (Titre, contenu TipTap, dépendances)
   const updateNodeData = async (nodeId, field, value) => {
-    // Changement local immédiat pour l'UI
-    const mappedField = field === 'dependsOn' ? 'depends_on' : field;
-    
+    let mappedField = field;
+    if (field === 'dependsOn') mappedField = 'depends_on';
+    if (field === 'lockedTitle') mappedField = 'locked_title';
+
     const newNodes = nodes.map(n => n.id === nodeId ? { ...n, [field]: value } : n);
     setNodes(calculateUnlocks(newNodes));
     
@@ -117,30 +112,12 @@ export default function TreeView({ setView, treeId }) {
       setSelectedNode({ ...selectedNode, [field]: value });
     }
 
-    // Sauvegarde en arrière-plan dans Supabase
-    await supabase
-      .from('nodes')
-      .update({ [mappedField]: value })
-      .eq('id', nodeId);
+    await supabase.from('nodes').update({ [mappedField]: value }).eq('id', nodeId);
   };
 
   const handleMouseDown = (e, nodeId) => {
     if (!isEditMode) return;
     setDraggingNodeId(nodeId);
-  };
-
-  // 5. Sauvegarder la position finale après un Drag & Drop
-  const handleMouseUp = async () => {
-    if (draggingNodeId) {
-      const finalNode = nodes.find(n => n.id === draggingNodeId);
-      if (finalNode) {
-        await supabase
-          .from('nodes')
-          .update({ position: finalNode.position })
-          .eq('id', draggingNodeId);
-      }
-    }
-    setDraggingNodeId(null);
   };
 
   const handleMouseMove = (e) => {
@@ -149,6 +126,16 @@ export default function TreeView({ setView, treeId }) {
     const x = e.clientX - rect.left - 100; 
     const y = e.clientY - rect.top - 40;  
     setNodes(nodes.map(n => n.id === draggingNodeId ? { ...n, position: { x, y } } : n));
+  };
+
+  const handleMouseUp = async () => {
+    if (draggingNodeId) {
+      const node = nodes.find(n => n.id === draggingNodeId);
+      if (node) {
+        await supabase.from('nodes').update({ position: node.position }).eq('id', draggingNodeId);
+      }
+    }
+    setDraggingNodeId(null);
   };
 
   const renderConnections = () => {
@@ -186,6 +173,11 @@ export default function TreeView({ setView, treeId }) {
     );
   }
 
+  // Définir le style d'arrière plan dynamiquement
+  const workspaceStyle = treeData?.background_type === 'image'
+    ? { backgroundImage: `url(${treeData.background_value})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+    : { backgroundColor: treeData?.background_value || '#ffffff' };
+
   return (
     <div className="h-full w-full bg-white flex overflow-hidden">
       
@@ -193,7 +185,9 @@ export default function TreeView({ setView, treeId }) {
         <EditorPanel 
           setView={setView} 
           addNode={addNode} 
-          setIsEditMode={setIsEditMode} 
+          setIsEditMode={setIsEditMode}
+          treeData={treeData}
+          updateTreeData={updateTreeData}
         />
       )}
 
@@ -207,7 +201,8 @@ export default function TreeView({ setView, treeId }) {
       )}
 
       <main 
-        className={`flex-1 relative overflow-hidden bg-white ${isEditMode ? 'cursor-crosshair' : ''}`}
+        className={`flex-1 relative overflow-hidden ${isEditMode ? 'cursor-crosshair' : ''}`}
+        style={workspaceStyle}
         ref={workspaceRef}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}

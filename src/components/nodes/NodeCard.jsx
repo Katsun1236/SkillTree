@@ -32,7 +32,10 @@ export default function NodeCard({ node, isEditMode, onMouseDown, onClick }) {
       onClick={handleClick}
     >
       <Icon size={20} className="mb-2" />
-      <span className="font-bold text-sm">{node.title}</span>
+      <span className="font-bold text-sm">
+        {node.status === 'locked' && node.lockedTitle ? node.lockedTitle : node.title}
+      </span>
+      
     </div>
   );
 }

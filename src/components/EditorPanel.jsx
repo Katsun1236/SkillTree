@@ -1,14 +1,27 @@
 import React from 'react';
 import { ArrowLeft, Plus, Palette, Move, Type } from 'lucide-react';
 
-export default function EditorPanel({ setView, addNode, setIsEditMode }) {
+export default function EditorPanel({ setView, addNode, setIsEditMode, treeData, updateTreeData }) {
   return (
     <aside className="w-80 h-full bg-white border-r border-slate-200 flex flex-col shadow-2xl z-20 relative">
-      <div className="p-4 border-b border-slate-200 flex items-center gap-4">
-        <button onClick={() => setView('index')} className="p-2 hover:bg-slate-100 rounded-lg transition">
-          <ArrowLeft size={20} />
-        </button>
-        <h2 className="font-black text-xl">Éditeur</h2>
+      <div className="p-4 border-b border-slate-200 flex flex-col gap-3">
+        <div className="flex items-center gap-4">
+          <button onClick={() => setView('index')} className="p-2 hover:bg-slate-100 rounded-lg transition">
+            <ArrowLeft size={20} />
+          </button>
+          <h2 className="font-black text-xl">Éditeur</h2>
+        </div>
+        
+        {/* MODIFIER LE NOM DU TABLEAU */}
+        <div>
+          <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Nom du tableau</label>
+          <input
+            type="text"
+            value={treeData?.name || ''}
+            onChange={(e) => updateTreeData('name', e.target.value)}
+            className="w-full p-2.5 border border-slate-200 rounded-lg font-bold text-sm outline-none focus:border-black mt-1"
+          />
+        </div>
       </div>
       
       <div className="flex-1 p-6 flex flex-col gap-6 overflow-y-auto">
@@ -22,21 +35,44 @@ export default function EditorPanel({ setView, addNode, setIsEditMode }) {
           </button>
         </div>
 
+        {/* CHOISIR UNE IMAGE OU COULEUR DE FOND */}
         <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Propriétés de l'arbre</h3>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-bold">Grille d'alignement</span>
-              <div className="w-10 h-6 bg-black rounded-full p-1 cursor-pointer">
-                <div className="w-4 h-4 bg-white rounded-full translate-x-4 transition-transform"></div>
+          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Propriétés de l'arrière-plan</h3>
+          <div className="space-y-4">
+            <div>
+              <label className="text-xs font-bold text-slate-500 block mb-1">Type de fond</label>
+              <select
+                value={treeData?.background_type || 'color'}
+                onChange={(e) => updateTreeData('background_type', e.target.value)}
+                className="w-full p-2 bg-white border border-slate-200 rounded-lg text-sm font-semibold outline-none"
+              >
+                <option value="color">Couleur unie</option>
+                <option value="image">Image (URL)</option>
+              </select>
+            </div>
+
+            {treeData?.background_type === 'color' ? (
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-bold">Couleur</span>
+                <input
+                  type="color"
+                  value={treeData?.background_value || '#ffffff'}
+                  onChange={(e) => updateTreeData('background_value', e.target.value)}
+                  className="w-8 h-8 rounded-lg cursor-pointer border border-slate-200 overflow-hidden"
+                />
               </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-bold">Arrière-plan</span>
-              <button className="flex items-center gap-2 text-sm border p-1.5 rounded-md hover:bg-slate-200 transition">
-                <Palette size={14}/> Blanc
-              </button>
-            </div>
+            ) : (
+              <div>
+                <label className="text-xs font-bold text-slate-500 block mb-1">URL de l'image</label>
+                <input
+                  type="text"
+                  value={treeData?.background_value || ''}
+                  onChange={(e) => updateTreeData('background_value', e.target.value)}
+                  placeholder="https://images.unsplash.com/..."
+                  className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-medium outline-none focus:border-black"
+                />
+              </div>
+            )}
           </div>
         </div>
 

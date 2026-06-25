@@ -99,7 +99,20 @@ export default function NodeModal({
 
         {/* Corps de la Modal */}
         <div className="flex-1 overflow-y-auto p-8">
-          
+          {isEditMode && (
+              <div className="mb-4">
+               <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                      Titre alternatif (si verrouillé)
+              </label>
+       <input 
+      type="text" 
+      placeholder="Ex: ??? ou Compétence Secrète" 
+      value={selectedNode.lockedTitle || ''}
+      onChange={(e) => updateNodeData(selectedNode.id, 'lockedTitle', e.target.value)}
+      className="w-full bg-slate-50 p-3 rounded-xl border border-slate-200 outline-none font-medium text-sm focus:border-black"
+    />
+  </div>
+)}
           {isEditMode ? (
             <div className="border border-slate-200 rounded-2xl overflow-hidden flex flex-col bg-white">
               
