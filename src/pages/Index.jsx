@@ -1,10 +1,44 @@
 import React from 'react';
 import { Plus, FolderTree } from 'lucide-react';
+import { supabase } from '../supabaseClient';
+
+
+function Button({ children, onClick, variant = 'primary', fullWidth = false, className = '', icon: Icon, type = "button", ...props }) {
+  let baseStyle = "flex items-center justify-center gap-2 font-bold transition ";
+
+  if (variant === 'primary') {
+    baseStyle += "bg-black text-white px-6 py-3 rounded-xl hover:bg-slate-800 shadow-md ";
+  } else if (variant === 'secondary') {
+    baseStyle += "bg-slate-100 text-black px-6 py-3 rounded-xl hover:bg-slate-200 ";
+  } else if (variant === 'outline') {
+    baseStyle += "border-2 border-black text-black px-6 py-3 rounded-xl hover:bg-slate-50 ";
+  } else if (variant === 'icon') {
+    baseStyle = "p-2 hover:bg-slate-100 rounded-full transition flex items-center justify-center text-slate-600 hover:text-black ";
+  }
+
+  if (fullWidth) {
+    baseStyle += "w-full ";
+  }
+
+  return (
+    <button type={type} onClick={onClick} className={`${baseStyle} ${className}`} {...props}>
+      {Icon && <Icon size={20} />}
+      {children}
+    </button>
+  );
+}
+// --------------------------------------------------
 
 export default function IndexView({ setView, setActiveTreeId }) {
+  // --- NOUVELLE FONCTION DE DÉCONNEXION ---
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setView('login');
+  };
+
   return (
     <div className="h-full w-full bg-slate-50 flex flex-col">
-      <TopBar title="Tableau de bord" onLogout={() => setView('login')} />
+      <TopBar title="Tableau de bord" onLogout={handleLogout} />
 
       <main className="flex-1 p-8 max-w-6xl mx-auto w-full overflow-y-auto">
         <div className="flex justify-between items-center mb-8">
