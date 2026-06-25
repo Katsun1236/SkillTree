@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Lock, Unlock, CheckCircle, ArrowLeft, Plus, Palette, Move, Type, X, Image as ImageIcon, Bold, Italic, Settings } from 'lucide-react';
 
 export default function TreeView({ setView, treeId }) {
-  const [nodes, setNodes] = useState(initialNodes);
+  const [nodes, setNodes] = useState([]);
   const [selectedNode, setSelectedNode] = useState(null);
   const [isEditMode, setIsEditMode] = useState(true);
   const [draggingNodeId, setDraggingNodeId] = useState(null);
