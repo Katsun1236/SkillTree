@@ -5,18 +5,14 @@ import IndexView from './pages/Index';
 import TreeView from './pages/TreeView';
 
 export default function App() {
-  const [currentView, setCurrentView] = useState('login');
+  const [currentView, setCurrentView] = useState(null);
   const [activeTreeId, setActiveTreeId] = useState(null);
-  const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) setCurrentView('index');
-      setAuthReady(true);
-    });
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN') {
+      if (event === 'INITIAL_SESSION') {
+        setCurrentView(session ? 'index' : 'login');
+      } else if (event === 'SIGNED_IN') {
         setCurrentView('index');
       } else if (event === 'SIGNED_OUT') {
         setCurrentView('login');
@@ -26,7 +22,7 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  if (!authReady) {
+  if (currentView === null) {
     return (
       <div className="h-screen w-full bg-slate-50 flex items-center justify-center">
         <div className="w-8 h-8 border-4 border-black border-t-transparent rounded-full animate-spin"></div>
