@@ -38,3 +38,13 @@ body {
 [contenteditable] {
   font-family: inherit;
 }
+.tiptap:focus {
+  outline: none;
+}
+
+/* Optionnel : Donne un style aux paragraphes ou images si nécessaire */
+.tiptap img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.75rem;
+}
