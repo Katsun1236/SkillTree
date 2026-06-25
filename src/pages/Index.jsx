@@ -1,36 +1,45 @@
 import React from 'react';
-import { Plus, FolderTree } from 'lucide-react';
+import { Plus, FolderTree, LogOut } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 
+const mockTrees = [
+  { id: 1, name: 'Développement Web', nodesCount: 24 },
+  { id: 2, name: 'Design UI/UX', nodesCount: 18 },
+  { id: 3, name: 'DevOps', nodesCount: 12 },
+];
 
-function Button({ children, onClick, variant = 'primary', fullWidth = false, className = '', icon: Icon, type = "button", ...props }) {
-  let baseStyle = "flex items-center justify-center gap-2 font-bold transition ";
-
-  if (variant === 'primary') {
-    baseStyle += "bg-black text-white px-6 py-3 rounded-xl hover:bg-slate-800 shadow-md ";
-  } else if (variant === 'secondary') {
-    baseStyle += "bg-slate-100 text-black px-6 py-3 rounded-xl hover:bg-slate-200 ";
-  } else if (variant === 'outline') {
-    baseStyle += "border-2 border-black text-black px-6 py-3 rounded-xl hover:bg-slate-50 ";
-  } else if (variant === 'icon') {
-    baseStyle = "p-2 hover:bg-slate-100 rounded-full transition flex items-center justify-center text-slate-600 hover:text-black ";
-  }
-
-  if (fullWidth) {
-    baseStyle += "w-full ";
-  }
-
+function TopBar({ title, onLogout }) {
   return (
-    <button type={type} onClick={onClick} className={`${baseStyle} ${className}`} {...props}>
+    <header className="w-full bg-white border-b border-slate-200 px-8 py-4 flex items-center justify-between flex-shrink-0">
+      <div className="flex items-center gap-3">
+        <div className="w-8 h-8 bg-black text-white rounded-lg flex items-center justify-center font-black text-sm">S</div>
+        <span className="font-black text-lg">{title}</span>
+      </div>
+      <button
+        onClick={onLogout}
+        className="flex items-center gap-2 text-slate-500 hover:text-black transition text-sm font-semibold"
+      >
+        <LogOut size={16} />
+        Déconnexion
+      </button>
+    </header>
+  );
+}
+
+function Button({ children, onClick, icon: Icon, type = 'button' }) {
+  return (
+    <button
+      type={type}
+      onClick={onClick}
+      className="flex items-center justify-center gap-2 font-bold transition bg-black text-white px-6 py-3 rounded-xl hover:bg-slate-800 shadow-md"
+    >
       {Icon && <Icon size={20} />}
       {children}
     </button>
   );
 }
-// --------------------------------------------------
 
 export default function IndexView({ setView, setActiveTreeId }) {
-  // --- NOUVELLE FONCTION DE DÉCONNEXION ---
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setView('login');
@@ -43,15 +52,15 @@ export default function IndexView({ setView, setActiveTreeId }) {
       <main className="flex-1 p-8 max-w-6xl mx-auto w-full overflow-y-auto">
         <div className="flex justify-between items-center mb-8">
           <h2 className="text-3xl font-black">Mes Arbres</h2>
-          <Button icon={Plus} onClick={() => alert("Fonctionnalité de création à venir !")}>
+          <Button icon={Plus} onClick={() => alert('Fonctionnalité de création à venir !')}>
             Créer un arbre
           </Button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {mockTrees.map(tree => (
-            <div 
-              key={tree.id} 
+            <div
+              key={tree.id}
               onClick={() => { setActiveTreeId(tree.id); setView('tree'); }}
               className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-black transition cursor-pointer group"
             >
