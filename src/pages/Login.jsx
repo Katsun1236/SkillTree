@@ -1,6 +1,98 @@
 import React, { useState } from 'react';
 import { supabase } from '../supabaseClient';
 
+function TreeLogo({ size = 40 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="20" cy="7" r="4" fill="#6C63FF"/>
+      <line x1="20" y1="11" x2="20" y2="17" stroke="#6C63FF" strokeWidth="1.5"/>
+      <circle cx="10" cy="21" r="3.5" fill="#6C63FF" fillOpacity="0.75"/>
+      <circle cx="30" cy="21" r="3.5" fill="#6C63FF" fillOpacity="0.75"/>
+      <line x1="20" y1="17" x2="10" y2="21" stroke="#6C63FF" strokeWidth="1.5" strokeOpacity="0.6"/>
+      <line x1="20" y1="17" x2="30" y2="21" stroke="#6C63FF" strokeWidth="1.5" strokeOpacity="0.6"/>
+      <circle cx="4" cy="32" r="3" fill="#6C63FF" fillOpacity="0.45"/>
+      <circle cx="16" cy="32" r="3" fill="#6C63FF" fillOpacity="0.45"/>
+      <circle cx="24" cy="32" r="3" fill="#6C63FF" fillOpacity="0.45"/>
+      <circle cx="36" cy="32" r="3" fill="#6C63FF" fillOpacity="0.45"/>
+      <line x1="10" y1="24.5" x2="4" y2="32" stroke="#6C63FF" strokeWidth="1" strokeOpacity="0.3"/>
+      <line x1="10" y1="24.5" x2="16" y2="32" stroke="#6C63FF" strokeWidth="1" strokeOpacity="0.3"/>
+      <line x1="30" y1="24.5" x2="24" y2="32" stroke="#6C63FF" strokeWidth="1" strokeOpacity="0.3"/>
+      <line x1="30" y1="24.5" x2="36" y2="32" stroke="#6C63FF" strokeWidth="1" strokeOpacity="0.3"/>
+    </svg>
+  );
+}
+
+function BackgroundTree() {
+  const nodes = [
+    { cx: 500, cy: 80, r: 22 },
+    { cx: 260, cy: 220, r: 18 },
+    { cx: 740, cy: 220, r: 18 },
+    { cx: 120, cy: 370, r: 15 },
+    { cx: 400, cy: 370, r: 15 },
+    { cx: 600, cy: 370, r: 15 },
+    { cx: 880, cy: 370, r: 15 },
+    { cx: 50, cy: 500, r: 12 },
+    { cx: 190, cy: 500, r: 12 },
+    { cx: 330, cy: 500, r: 12 },
+    { cx: 470, cy: 500, r: 12 },
+    { cx: 540, cy: 500, r: 12 },
+    { cx: 660, cy: 500, r: 12 },
+    { cx: 820, cy: 500, r: 12 },
+    { cx: 950, cy: 500, r: 12 },
+    { cx: 20, cy: 610, r: 9 },
+    { cx: 80, cy: 610, r: 9 },
+    { cx: 155, cy: 610, r: 9 },
+    { cx: 225, cy: 610, r: 9 },
+    { cx: 300, cy: 610, r: 9 },
+    { cx: 360, cy: 610, r: 9 },
+    { cx: 440, cy: 610, r: 9 },
+    { cx: 510, cy: 610, r: 9 },
+    { cx: 570, cy: 610, r: 9 },
+    { cx: 640, cy: 610, r: 9 },
+    { cx: 710, cy: 610, r: 9 },
+    { cx: 790, cy: 610, r: 9 },
+    { cx: 860, cy: 610, r: 9 },
+    { cx: 930, cy: 610, r: 9 },
+    { cx: 980, cy: 610, r: 9 },
+  ];
+
+  const edges = [
+    [0,1],[0,2],
+    [1,3],[1,4],[2,5],[2,6],
+    [3,7],[3,8],[4,9],[4,10],[5,11],[5,12],[6,13],[6,14],
+    [7,15],[7,16],[8,17],[8,18],[9,19],[9,20],[10,21],[10,22],[11,23],[11,24],[12,25],[12,26],[13,27],[13,28],[14,29],
+  ];
+
+  return (
+    <svg
+      viewBox="0 0 1000 680"
+      xmlns="http://www.w3.org/2000/svg"
+      style={{
+        position: 'absolute',
+        inset: 0,
+        width: '100%',
+        height: '100%',
+        opacity: 0.12,
+        pointerEvents: 'none',
+      }}
+      preserveAspectRatio="xMidYMid slice"
+    >
+      {edges.map(([a, b], i) => (
+        <line
+          key={i}
+          x1={nodes[a].cx} y1={nodes[a].cy}
+          x2={nodes[b].cx} y2={nodes[b].cy}
+          stroke="#6C63FF"
+          strokeWidth="1.5"
+        />
+      ))}
+      {nodes.map((n, i) => (
+        <circle key={i} cx={n.cx} cy={n.cy} r={n.r} fill="#6C63FF" />
+      ))}
+    </svg>
+  );
+}
+
 export default function Login({ setView }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -44,24 +136,31 @@ export default function Login({ setView }) {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      background: '#0D0D10',
+      background: '#0A0A0F',
       fontFamily: "'Inter', system-ui, sans-serif",
+      position: 'relative',
+      overflow: 'hidden',
     }}>
-      <div style={{ width: '100%', maxWidth: '360px', padding: '0 24px' }}>
+      <BackgroundTree />
 
-        <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-          <div style={{
-            width: '40px', height: '40px',
-            background: '#6C63FF',
-            borderRadius: '10px',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontWeight: 900,
-            fontSize: '18px',
-            color: 'white',
-            marginBottom: '16px',
-          }}>S</div>
+      <div style={{
+        position: 'absolute',
+        inset: 0,
+        background: 'radial-gradient(ellipse at 50% 50%, rgba(10,10,15,0.35) 0%, rgba(10,10,15,0.82) 55%, #0A0A0F 80%)',
+        pointerEvents: 'none',
+      }} />
+
+      <div style={{
+        position: 'relative',
+        zIndex: 1,
+        width: '100%',
+        maxWidth: '360px',
+        padding: '0 24px',
+      }}>
+        <div style={{ textAlign: 'center', marginBottom: '36px' }}>
+          <div style={{ display: 'inline-block', marginBottom: '14px' }}>
+            <TreeLogo size={48} />
+          </div>
           <h1 style={{ color: 'white', fontSize: '20px', fontWeight: 700, margin: '0 0 4px', letterSpacing: '-0.01em' }}>
             SkillTree
           </h1>
@@ -72,7 +171,7 @@ export default function Login({ setView }) {
 
         {error && (
           <div style={{
-            marginBottom: '20px',
+            marginBottom: '18px',
             padding: '11px 14px',
             background: 'rgba(239,68,68,0.08)',
             border: '1px solid rgba(239,68,68,0.25)',
@@ -85,7 +184,7 @@ export default function Login({ setView }) {
           </div>
         )}
 
-        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
+        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '18px' }}>
           <div>
             <label style={{
               display: 'block',
@@ -171,24 +270,17 @@ export default function Login({ setView }) {
           >
             {loading ? (
               <>
-                <span style={{
-                  width: '13px', height: '13px',
-                  border: '2px solid rgba(255,255,255,0.3)',
-                  borderTopColor: 'white',
-                  borderRadius: '50%',
-                  display: 'inline-block',
-                  animation: 'spin 0.7s linear infinite',
-                }} />
+                <span style={{ width:'13px', height:'13px', border:'2px solid rgba(255,255,255,0.3)', borderTopColor:'white', borderRadius:'50%', display:'inline-block', animation:'spin 0.7s linear infinite' }} />
                 Connexion…
               </>
             ) : 'Se connecter'}
           </button>
         </form>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
-          <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.07)' }} />
-          <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '11px', fontWeight: 600, letterSpacing: '0.05em' }}>OU</span>
-          <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.07)' }} />
+        <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'18px' }}>
+          <div style={{ flex:1, height:'1px', background:'rgba(255,255,255,0.07)' }} />
+          <span style={{ color:'rgba(255,255,255,0.2)', fontSize:'11px', fontWeight:600, letterSpacing:'0.05em' }}>OU</span>
+          <div style={{ flex:1, height:'1px', background:'rgba(255,255,255,0.07)' }} />
         </div>
 
         <button
@@ -215,14 +307,7 @@ export default function Login({ setView }) {
         >
           {discordLoading ? (
             <>
-              <span style={{
-                width: '13px', height: '13px',
-                border: '2px solid rgba(255,255,255,0.3)',
-                borderTopColor: 'white',
-                borderRadius: '50%',
-                display: 'inline-block',
-                animation: 'spin 0.7s linear infinite',
-              }} />
+              <span style={{ width:'13px', height:'13px', border:'2px solid rgba(255,255,255,0.3)', borderTopColor:'white', borderRadius:'50%', display:'inline-block', animation:'spin 0.7s linear infinite' }} />
               Redirection…
             </>
           ) : (
