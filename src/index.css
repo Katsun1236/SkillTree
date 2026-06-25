@@ -48,3 +48,32 @@ body {
   height: auto;
   border-radius: 0.75rem;
 }
+/* Styles pour les tableaux TipTap */
+.tiptap table {
+  border-collapse: collapse;
+  table-layout: fixed;
+  width: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+.tiptap td, .tiptap th {
+  min-width: 1em;
+  border: 2px solid #cbd5e1;
+  padding: 8px;
+  vertical-align: top;
+  box-sizing: border-box;
+  position: relative;
+}
+.tiptap th {
+  font-weight: bold;
+  text-align: left;
+  background-color: #f8fafc;
+}
+.tiptap .selectedCell:after {
+  z-index: 2;
+  position: absolute;
+  content: "";
+  left: 0; right: 0; top: 0; bottom: 0;
+  background: rgba(200, 200, 255, 0.4);
+  pointer-events: none;
+}

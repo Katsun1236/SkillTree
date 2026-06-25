@@ -39,15 +39,18 @@ export default function TreeView({ setView, treeId }) {
       .eq('tree_id', treeId);
 
     if (data) {
-      const formattedNodes = data.map(node => ({
-        ...node,
-        dependsOn: node.depends_on || [],
-        lockedTitle: node.locked_title || '',
-        bgColor: node.bg_color || '#ffffff',
-        textColor: node.text_color || '#000000',
-        emoji: node.emoji || '🌟',
-        subtitle: node.subtitle || ''
-      }));
+      // Remplace le bloc du map dans loadTreeNodes par celui-ci :
+const formattedNodes = data.map(node => ({
+  ...node,
+  dependsOn: node.depends_on || [],
+  lockedTitle: node.locked_title || '',
+  bgColor: node.bg_color || '#ffffff',
+  textColor: node.text_color || '#000000',
+  emoji: node.emoji || '🌟',
+  subtitle: node.subtitle || '',
+  // On charge les pages ou on crée une page par défaut avec l'ancien contenu
+  pages: node.pages || [{ id: 'page-1', content: node.content || '', validation: { type: 'read' } }]
+}));
       setNodes(calculateUnlocks(formattedNodes));
     }
     setLoading(false);
@@ -101,8 +104,9 @@ export default function TreeView({ setView, treeId }) {
       emoji: '🌟',
       subtitle: '',
       bg_color: '#ffffff',
-      text_color: '#000000'
-    };
+      text_color: '#000000',
+      pages: [{ id: `page-${Date.now()}`, content: '', validation: { type: 'read' } }] // <-- Ajoute ceci
+      };
 
     const { data } = await supabase.from('nodes').insert(newNodeData).select().single();
     if (data) {
