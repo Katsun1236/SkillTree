@@ -1,0 +1,11 @@
+[build]
+  # Commande pour compiler le projet
+  command = "npm run build"
+  # Dossier contenant le site final généré par Vite
+  publish = "dist"
+
+[[redirects]]
+  # Redirige toutes les requêtes vers index.html pour que React gère l'affichage
+  from = "/*"
+  to = "/index.html"
+  status = 200
