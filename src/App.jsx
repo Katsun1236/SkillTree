@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from './supabaseClient'; // Assure-toi que les majuscules correspondent bien au nom de ton fichier !
+import { supabase } from './supabaseClient';
 import Login from './pages/Login';
 import IndexView from './pages/Index';
 import TreeView from './pages/TreeView';
@@ -7,24 +7,32 @@ import TreeView from './pages/TreeView';
 export default function App() {
   const [currentView, setCurrentView] = useState('login');
   const [activeTreeId, setActiveTreeId] = useState(null);
+  const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
-    // 1. On vérifie si on est déjà connecté en arrivant sur la page
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) setCurrentView('index');
+      setAuthReady(true);
     });
 
-    // 2. On écoute en temps réel (c'est ça qui détecte le retour de Discord !)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
-        setCurrentView('index'); // Connexion réussie -> Tableau de bord
-      } else {
-        setCurrentView('login'); // Déconnexion -> Login
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN') {
+        setCurrentView('index');
+      } else if (event === 'SIGNED_OUT') {
+        setCurrentView('login');
       }
     });
 
     return () => subscription.unsubscribe();
   }, []);
+
+  if (!authReady) {
+    return (
+      <div className="h-screen w-full bg-slate-50 flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-black border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen w-full bg-slate-50 text-black overflow-hidden">
