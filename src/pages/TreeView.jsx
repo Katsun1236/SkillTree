@@ -1,10 +1,74 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
-import { Grid, Map as MapIcon, Star } from 'lucide-react';
+import { Grid, Map as MapIcon, Star, Settings, Plus, Trash2, X } from 'lucide-react';
 import NodeCard from '../components/nodes/NodeCard';
 import NodeModal from '../components/nodes/Nodemodal';
 import EditorPanel from '../components/EditorPanel';
+
+function XpConfigModal({ treeData, updateTreeData, onClose }) {
+  const defaultLevels = Array.from({ length: 10 }, (_, i) => ({
+    name: `Niveau ${i + 1}`,
+    threshold: (i + 1) * 100,
+  }));
+  const [levels, setLevels] = useState(treeData.xp_levels || defaultLevels);
+
+  const handleSave = async () => {
+    await updateTreeData('xp_levels', levels);
+    onClose();
+  };
+
+  const updateLevel = (i, field, value) => {
+    const updated = [...levels];
+    updated[i] = { ...updated[i], [field]: field === 'threshold' ? parseInt(value) || 0 : value };
+    setLevels(updated);
+  };
+
+  const addLevel = () => setLevels([...levels, { name: `Niveau ${levels.length + 1}`, threshold: (levels.length + 1) * 100 }]);
+  const removeLevel = (i) => setLevels(levels.filter((_, idx) => idx !== i));
+
+  return (
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col">
+        <div className="flex justify-between items-center p-6 border-b border-slate-100">
+          <h2 className="font-black text-xl flex items-center gap-2"><Settings size={20} /> Configuration des niveaux XP</h2>
+          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition"><X size={20} /></button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-6 space-y-3">
+          {levels.map((lvl, i) => (
+            <div key={i} className={`flex items-center gap-3 p-3 rounded-xl border ${i === (treeData.level || 1) - 1 ? 'border-indigo-300 bg-indigo-50' : 'border-slate-200 bg-slate-50'}`}>
+              <span className="text-xs font-black text-slate-400 w-5 text-center">{i + 1}</span>
+              <input
+                type="text"
+                value={lvl.name}
+                onChange={(e) => updateLevel(i, 'name', e.target.value)}
+                placeholder={`Niveau ${i + 1}`}
+                className="flex-1 p-2 bg-white border border-slate-200 rounded-lg text-sm font-bold outline-none focus:border-indigo-400"
+              />
+              <div className="flex items-center gap-1">
+                <input
+                  type="number"
+                  value={lvl.threshold}
+                  onChange={(e) => updateLevel(i, 'threshold', e.target.value)}
+                  className="w-24 p-2 bg-white border border-slate-200 rounded-lg text-sm font-bold outline-none focus:border-indigo-400 text-center"
+                />
+                <span className="text-xs font-bold text-slate-400">XP</span>
+              </div>
+              <button onClick={() => removeLevel(i)} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg transition"><Trash2 size={14} /></button>
+            </div>
+          ))}
+          <button onClick={addLevel} className="w-full p-2.5 border-2 border-dashed border-slate-200 rounded-xl text-sm font-bold text-slate-400 hover:border-indigo-300 hover:text-indigo-500 transition flex items-center justify-center gap-2">
+            <Plus size={16} /> Ajouter un niveau
+          </button>
+        </div>
+        <div className="p-6 border-t border-slate-100 flex gap-3">
+          <button onClick={onClose} className="flex-1 p-3 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold transition">Annuler</button>
+          <button onClick={handleSave} className="flex-1 p-3 bg-black text-white hover:bg-slate-800 rounded-xl font-bold transition">Sauvegarder</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function TreeView({ setView, treeId }) {
   const [nodes, setNodes] = useState([]);
@@ -16,7 +80,8 @@ export default function TreeView({ setView, treeId }) {
   
   const [snapToGrid, setSnapToGrid] = useState(false);
   const [draggingNodeId, setDraggingNodeId] = useState(null);
-  const GRID_SIZE = 40; 
+  const [showXpConfig, setShowXpConfig] = useState(false);
+  const GRID_SIZE = 40;
 
   useEffect(() => {
     if (treeId) {
@@ -44,7 +109,10 @@ export default function TreeView({ setView, treeId }) {
         textColor: node.text_color || '#000000',
         emoji: node.emoji || '🌟',
         subtitle: node.subtitle || '',
-        pages: node.pages || [{ id: 'page-1', content: node.content || '', validation: { type: 'read' } }],
+        pages: (node.pages || [{ id: 'page-1', content: node.content || '', validation: { type: 'read' } }]).map(p => ({
+          ...p,
+          validation: p.validation ?? { type: 'read' }
+        })),
         xpReward: node.xp_reward ?? 50 // 50 XP par défaut
       }));
       setNodes(calculateUnlocks(formattedNodes));
@@ -102,14 +170,16 @@ export default function TreeView({ setView, treeId }) {
       const currentXp = treeData.current_xp || 0;
       const currentLevel = treeData.level || 1;
       const newXpTotal = currentXp + xpGained;
-      
-      // Calcul du niveau (ex: Palier de 100 XP par niveau)
-      const threshold = currentLevel * 100;
+      const levels = treeData.xp_levels;
       let newLevel = currentLevel;
-      
-      if (newXpTotal >= threshold) {
-        newLevel = currentLevel + 1;
-        // Optionnel : tu pourrais déclencher une animation de Level Up ici !
+
+      if (levels && levels.length > 0) {
+        const currentLevelData = levels[currentLevel - 1];
+        const threshold = currentLevelData?.threshold ?? currentLevel * 100;
+        if (newXpTotal >= threshold && currentLevel < levels.length) newLevel = currentLevel + 1;
+      } else {
+        const threshold = currentLevel * 100;
+        if (newXpTotal >= threshold) newLevel = currentLevel + 1;
       }
 
       setTreeData(prev => ({ ...prev, current_xp: newXpTotal, level: newLevel }));
@@ -237,23 +307,37 @@ export default function TreeView({ setView, treeId }) {
 
       {/* Barre d'XP Flottante (Affichée en mode lecture) */}
       {!isEditMode && treeData && (
-        <div className="absolute top-6 left-1/2 -translate-x-1/2 z-30 bg-white px-6 py-3 rounded-2xl shadow-xl border border-slate-200 flex items-center gap-4 min-w-[300px]">
-          <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center">
-            <Star className="text-indigo-500" size={24} fill="currentColor" />
-          </div>
-          <div className="flex-1">
-            <div className="flex justify-between w-full text-xs font-black mb-1.5 uppercase tracking-wide">
-              <span className="text-indigo-600">Niveau {treeData.level || 1}</span>
-              <span className="text-slate-400">{treeData.current_xp || 0} / {(treeData.level || 1) * 100} XP</span>
+        <>
+          <div
+            className="absolute top-6 left-1/2 -translate-x-1/2 z-30 bg-white px-6 py-3 rounded-2xl shadow-xl border border-slate-200 flex items-center gap-4 min-w-[300px] cursor-pointer hover:border-indigo-300 transition group"
+            onClick={() => setShowXpConfig(true)}
+            title="Cliquer pour configurer les niveaux XP"
+          >
+            <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center">
+              <Star className="text-indigo-500" size={24} fill="currentColor" />
             </div>
-            <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-indigo-500 rounded-full transition-all duration-1000 ease-out"
-                style={{ width: `${Math.min(100, ((treeData.current_xp || 0) / ((treeData.level || 1) * 100)) * 100)}%` }}
-              />
+            <div className="flex-1">
+              <div className="flex justify-between w-full text-xs font-black mb-1.5 uppercase tracking-wide">
+                <span className="text-indigo-600">{(treeData.xp_levels && treeData.xp_levels[(treeData.level || 1) - 1]?.name) || `Niveau ${treeData.level || 1}`}</span>
+                <span className="text-slate-400">{treeData.current_xp || 0} / {(treeData.xp_levels && treeData.xp_levels[(treeData.level || 1) - 1]?.threshold) || ((treeData.level || 1) * 100)} XP</span>
+              </div>
+              <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-indigo-500 rounded-full transition-all duration-1000 ease-out"
+                  style={{ width: `${Math.min(100, ((treeData.current_xp || 0) / ((treeData.xp_levels && treeData.xp_levels[(treeData.level || 1) - 1]?.threshold) || ((treeData.level || 1) * 100))) * 100)}%` }}
+                />
+              </div>
             </div>
           </div>
-        </div>
+
+          {showXpConfig && (
+            <XpConfigModal
+              treeData={treeData}
+              updateTreeData={updateTreeData}
+              onClose={() => setShowXpConfig(false)}
+            />
+          )}
+        </>
       )}
 
       <div className="absolute top-6 left-6 z-30 flex gap-2">
@@ -264,13 +348,10 @@ export default function TreeView({ setView, treeId }) {
         )}
       </div>
 
-      <div className="absolute bottom-6 right-6 z-30 bg-white p-2 rounded-xl shadow-xl border border-slate-200 flex items-center justify-center cursor-help" title="Utilise la molette pour zoomer, clique et glisse dans le vide pour te déplacer.">
-        <MapIcon size={24} className="text-slate-400" />
-      </div>
-
       <TransformWrapper
         initialScale={1} minScale={0.1} maxScale={4} centerOnInit={true}
         disabled={draggingNodeId !== null} panning={{ velocityDisabled: true }}
+        wheel={{ step: 0.05 }}
       >
         {({ zoomIn, zoomOut, resetTransform, state }) => (
           <div className="flex-1 relative w-full h-full overflow-hidden" style={workspaceStyle}>
@@ -280,7 +361,11 @@ export default function TreeView({ setView, treeId }) {
               <button onClick={() => zoomIn()} className="px-3 py-2 hover:bg-slate-100 border-l border-slate-200">+</button>
             </div>
 
-            <TransformComponent wrapperStyle={{ width: "100%", height: "100%" }}>
+            <div className="absolute bottom-6 right-6 z-30 bg-white p-2.5 rounded-xl shadow-xl border border-slate-200 flex items-center justify-center cursor-pointer hover:bg-slate-100 transition" title="Recentrer la vue" onClick={() => resetTransform()}>
+              <MapIcon size={24} className="text-slate-500" />
+            </div>
+
+            <TransformComponent wrapperStyle={{ width: "100%", height: "100%", overflow: "hidden" }} contentStyle={{ width: "100%", height: "100%" }}>
               <main 
                 className={`w-[5000px] h-[5000px] relative transition-colors ${isEditMode && !draggingNodeId ? 'cursor-grab active:cursor-grabbing' : ''} ${draggingNodeId ? 'cursor-crosshair' : ''}`}
                 ref={workspaceRef} onMouseMove={(e) => handleMouseMove(e, state.scale)} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}
