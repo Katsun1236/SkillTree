@@ -52,7 +52,8 @@ export default function NodeModal({ selectedNode, isEditMode, nodes, updateNodeD
   };
 
   const pages = selectedNode?.pages?.length > 0 ? selectedNode.pages : [{ id: 'default', content: selectedNode?.content || '', validation: { type: 'read' } }];
-  const currentPage = pages[currentPageIndex];
+  const currentPage = pages[currentPageIndex] ?? pages[0];
+  const currentValidation = currentPage?.validation ?? { type: 'read' };
 
   // 2. Création de l'éditeur TipTap
   const editor = useEditor({
@@ -133,8 +134,8 @@ export default function NodeModal({ selectedNode, isEditMode, nodes, updateNodeD
   };
 
   const handleValidateStep = () => {
-    if (currentPage.validation.type === 'qcm') {
-      const correctIds = currentPage.validation.options.filter(o => o.isCorrect).map(o => o.id);
+    if (currentValidation.type === 'qcm') {
+      const correctIds = (currentValidation.options || []).filter(o => o.isCorrect).map(o => o.id);
       const isCorrect = correctIds.length === selectedAnswers.length && correctIds.every(id => selectedAnswers.includes(id));
       if (!isCorrect) { setQcmError(true); return; }
     }
@@ -224,33 +225,33 @@ export default function NodeModal({ selectedNode, isEditMode, nodes, updateNodeD
               <h3 className="font-black mb-4 flex items-center gap-2 text-lg"><CheckCircle size={20} /> Méthode de validation (Page {currentPageIndex + 1})</h3>
               <div className="mb-4">
                 <label className="text-sm font-bold text-slate-500 mr-4">Type :</label>
-                <select value={currentPage.validation.type} onChange={(e) => updateValidation('type', e.target.value)} className="p-2 border border-slate-200 rounded-lg text-sm font-bold outline-none">
+                <select value={currentValidation.type} onChange={(e) => updateValidation('type', e.target.value)} className="p-2 border border-slate-200 rounded-lg text-sm font-bold outline-none">
                   <option value="read">Bouton classique (J'ai lu)</option>
                   <option value="qcm">Question à Choix Multiples (QCM/QRM)</option>
                 </select>
               </div>
-              {currentPage.validation.type === 'qcm' && (
+              {currentValidation.type === 'qcm' && (
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                  <input type="text" placeholder="Pose ta question ici..." value={currentPage.validation.question || ''} onChange={(e) => updateValidation('question', e.target.value)} className="w-full p-3 mb-4 rounded-lg border border-slate-200 outline-none font-bold" />
+                  <input type="text" placeholder="Pose ta question ici..." value={currentValidation.question || ''} onChange={(e) => updateValidation('question', e.target.value)} className="w-full p-3 mb-4 rounded-lg border border-slate-200 outline-none font-bold" />
                   <div className="space-y-2 mb-4">
-                    {(currentPage.validation.options || []).map((opt, i) => (
+                    {(currentValidation.options || []).map((opt, i) => (
                       <div key={opt.id} className="flex items-center gap-3 bg-white p-2 rounded-lg border border-slate-200">
-                        <input type="checkbox" checked={opt.isCorrect || false} onChange={(e) => { const newOpts = [...currentPage.validation.options]; newOpts[i].isCorrect = e.target.checked; updateValidation('options', newOpts); }} className="w-5 h-5 accent-green-500 cursor-pointer" title="Cocher si c'est une bonne réponse" />
-                        <input type="text" value={opt.text} onChange={(e) => { const newOpts = [...currentPage.validation.options]; newOpts[i].text = e.target.value; updateValidation('options', newOpts); }} className="flex-1 outline-none text-sm" placeholder={`Option ${i + 1}`} />
-                        <button onClick={() => updateValidation('options', currentPage.validation.options.filter(o => o.id !== opt.id))} className="text-red-400 p-1 hover:bg-red-50 rounded"><X size={16} /></button>
+                        <input type="checkbox" checked={opt.isCorrect || false} onChange={(e) => { const newOpts = [...currentValidation.options]; newOpts[i].isCorrect = e.target.checked; updateValidation('options', newOpts); }} className="w-5 h-5 accent-green-500 cursor-pointer" title="Cocher si c'est une bonne réponse" />
+                        <input type="text" value={opt.text} onChange={(e) => { const newOpts = [...currentValidation.options]; newOpts[i].text = e.target.value; updateValidation('options', newOpts); }} className="flex-1 outline-none text-sm" placeholder={`Option ${i + 1}`} />
+                        <button onClick={() => updateValidation('options', currentValidation.options.filter(o => o.id !== opt.id))} className="text-red-400 p-1 hover:bg-red-50 rounded"><X size={16} /></button>
                       </div>
                     ))}
                   </div>
-                  <button onClick={() => { const newOpts = [...(currentPage.validation.options || []), { id: `opt-${Date.now()}`, text: '', isCorrect: false }]; updateValidation('options', newOpts); }} className="text-sm font-bold bg-white border border-slate-200 px-4 py-2 rounded-lg hover:border-black transition">+ Ajouter un choix</button>
+                  <button onClick={() => { const newOpts = [...(currentValidation.options || []), { id: `opt-${Date.now()}`, text: '', isCorrect: false }]; updateValidation('options', newOpts); }} className="text-sm font-bold bg-white border border-slate-200 px-4 py-2 rounded-lg hover:border-black transition">+ Ajouter un choix</button>
                 </div>
               )}
             </div>
           ) : (
-            currentPage.validation.type === 'qcm' && (
+            currentValidation.type === 'qcm' && (
               <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 mt-8">
-                <h3 className="font-black text-xl mb-6">{currentPage.validation.question}</h3>
+                <h3 className="font-black text-xl mb-6">{currentValidation.question}</h3>
                 <div className="grid gap-3">
-                  {(currentPage.validation.options || []).map(opt => (
+                  {(currentValidation.options || []).map(opt => (
                     <label key={opt.id} className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedAnswers.includes(opt.id) ? 'border-indigo-500 bg-indigo-50' : 'border-slate-100 hover:border-slate-300'}`}>
                       <input type="checkbox" checked={selectedAnswers.includes(opt.id)} onChange={() => { setQcmError(false); setSelectedAnswers(prev => prev.includes(opt.id) ? prev.filter(id => id !== opt.id) : [...prev, opt.id]); }} className="w-5 h-5 accent-indigo-600" />
                       <span className="font-bold text-slate-700">{opt.text}</span>
