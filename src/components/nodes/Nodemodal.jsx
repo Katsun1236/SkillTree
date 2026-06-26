@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { X, Bold, Italic, Strikethrough, Link, Image as ImageIcon, Video, Highlighter, Settings, CheckCircle, Upload, Palette, Table as TableIcon, Plus, ChevronRight, AlertTriangle, Trash2, Paperclip, FileDown } from 'lucide-react';
+import { X, Bold, Italic, Strikethrough, Link, Image as ImageIcon, Video, Highlighter, Settings, CheckCircle, Upload, Palette, Table as TableIcon, Plus, ChevronRight, AlertTriangle, Trash2, Paperclip, FileDown, Ban } from 'lucide-react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import LinkExtension from '@tiptap/extension-link';
@@ -14,7 +14,6 @@ import { TableCell } from '@tiptap/extension-table-cell';
 import { TableHeader } from '@tiptap/extension-table-header';
 import { Node, mergeAttributes } from '@tiptap/core';
 import { supabase } from '../../supabaseClient';
-
 
 const CustomVideo = Node.create({
   name: 'customVideo',
@@ -35,9 +34,27 @@ export default function NodeModal({ selectedNode, isEditMode, nodes, updateNodeD
   const [selectedAnswers, setSelectedAnswers] = useState([]);
   const [qcmError, setQcmError] = useState(false);
 
+  // 1. Fonctions de mise à jour placées AVANT la création de l'éditeur
+  const updatePageData = (field, value) => {
+    if(!selectedNode) return;
+    const pages = selectedNode?.pages?.length > 0 ? selectedNode.pages : [{ id: 'default', content: selectedNode?.content || '', validation: { type: 'read' } }];
+    const newPages = [...pages];
+    newPages[currentPageIndex] = { ...newPages[currentPageIndex], [field]: value };
+    updateNodeData(selectedNode.id, 'pages', newPages);
+  };
+
+  const updateValidation = (field, value) => {
+    if(!selectedNode) return;
+    const pages = selectedNode?.pages?.length > 0 ? selectedNode.pages : [{ id: 'default', content: selectedNode?.content || '', validation: { type: 'read' } }];
+    const newPages = [...pages];
+    newPages[currentPageIndex].validation = { ...newPages[currentPageIndex].validation, [field]: value };
+    updateNodeData(selectedNode.id, 'pages', newPages);
+  };
+
   const pages = selectedNode?.pages?.length > 0 ? selectedNode.pages : [{ id: 'default', content: selectedNode?.content || '', validation: { type: 'read' } }];
   const currentPage = pages[currentPageIndex];
 
+  // 2. Création de l'éditeur TipTap
   const editor = useEditor({
     extensions: [
       StarterKit, TextStyle, Color,
@@ -62,18 +79,6 @@ export default function NodeModal({ selectedNode, isEditMode, nodes, updateNodeD
   }, [currentPageIndex, selectedNode?.id, isEditMode]);
 
   if (!selectedNode) return null;
-
-  const updatePageData = (field, value) => {
-    const newPages = [...pages];
-    newPages[currentPageIndex] = { ...newPages[currentPageIndex], [field]: value };
-    updateNodeData(selectedNode.id, 'pages', newPages);
-  };
-
-  const updateValidation = (field, value) => {
-    const newPages = [...pages];
-    newPages[currentPageIndex].validation = { ...newPages[currentPageIndex].validation, [field]: value };
-    updateNodeData(selectedNode.id, 'pages', newPages);
-  };
 
   const addPage = () => {
     const newPages = [...pages, { id: `page-${Date.now()}`, content: '', validation: { type: 'read' } }];
@@ -297,8 +302,8 @@ export default function NodeModal({ selectedNode, isEditMode, nodes, updateNodeD
                 <div className="flex flex-wrap gap-2">
                   {nodes.filter(n => n.id !== selectedNode.id).map(otherNode => (
                     <label key={otherNode.id} className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-slate-200 cursor-pointer text-xs font-bold">
-                      <input type="checkbox" checked={selectedNode.dependsOn.includes(otherNode.id)} onChange={(e) => {
-                        let newDepends = [...selectedNode.dependsOn];
+                      <input type="checkbox" checked={selectedNode.dependsOn?.includes(otherNode.id)} onChange={(e) => {
+                        let newDepends = [...(selectedNode.dependsOn || [])];
                         if (e.target.checked) newDepends.push(otherNode.id); else newDepends = newDepends.filter(id => id !== otherNode.id);
                         updateNodeData(selectedNode.id, 'dependsOn', newDepends);
                       }} className="w-3.5 h-3.5 accent-black" />
@@ -307,6 +312,25 @@ export default function NodeModal({ selectedNode, isEditMode, nodes, updateNodeD
                   ))}
                 </div>
               </div>
+              
+              {/* COMPÉTENCES INCOMPATIBLES */}
+              <div className="col-span-2 mt-4">
+                <label className="block text-xs font-bold text-red-500 mb-2">Compétences incompatibles (Valider cette carte bloquera celles-ci) :</label>
+                <div className="flex flex-wrap gap-2">
+                  {nodes.filter(n => n.id !== selectedNode.id).map(otherNode => (
+                    <label key={`excl-${otherNode.id}`} className="flex items-center gap-2 bg-red-50 text-red-700 px-3 py-1.5 rounded-lg border border-red-200 cursor-pointer text-xs font-bold hover:bg-red-100">
+                      <input type="checkbox" checked={selectedNode.exclusiveWith?.includes(otherNode.id)} onChange={(e) => {
+                        let newExclusive = [...(selectedNode.exclusiveWith || [])];
+                        if (e.target.checked) newExclusive.push(otherNode.id); 
+                        else newExclusive = newExclusive.filter(id => id !== otherNode.id);
+                        updateNodeData(selectedNode.id, 'exclusiveWith', newExclusive);
+                      }} className="w-3.5 h-3.5 accent-red-500" />
+                      <Ban size={14} /> {otherNode.title}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
             </div>
           )}
 
@@ -325,22 +349,6 @@ export default function NodeModal({ selectedNode, isEditMode, nodes, updateNodeD
              <button onClick={onClose} className="w-full bg-slate-100 hover:bg-slate-200 text-black px-6 py-4 rounded-xl font-black text-lg transition">Terminer l'édition</button>
           ) : null}
         </div>
-        <div className="col-span-2 mt-4">
-                <label className="block text-xs font-bold text-red-500 mb-2">Compétences incompatibles (Valider cette carte bloquera celles-ci) :</label>
-                <div className="flex flex-wrap gap-2">
-                  {nodes.filter(n => n.id !== selectedNode.id).map(otherNode => (
-                    <label key={`excl-${otherNode.id}`} className="flex items-center gap-2 bg-red-50 text-red-700 px-3 py-1.5 rounded-lg border border-red-200 cursor-pointer text-xs font-bold hover:bg-red-100">
-                      <input type="checkbox" checked={selectedNode.exclusiveWith?.includes(otherNode.id)} onChange={(e) => {
-                        let newExclusive = [...(selectedNode.exclusiveWith || [])];
-                        if (e.target.checked) newExclusive.push(otherNode.id); 
-                        else newExclusive = newExclusive.filter(id => id !== otherNode.id);
-                        updateNodeData(selectedNode.id, 'exclusiveWith', newExclusive);
-                      }} className="w-3.5 h-3.5 accent-red-500" />
-                      <Ban size={14} /> {otherNode.title}
-                    </label>
-                  ))}
-                </div>
-              </div>
       </div>
     </div>
   );
